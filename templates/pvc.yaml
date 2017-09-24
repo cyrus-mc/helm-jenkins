@@ -1,0 +1,19 @@
+{{- if and .Values.Persistence.Enabled (not .Values.Persistence.ExistingClaim) -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "fullname" . }}
+  namespace: {{ .Values.Namespace | default "default" }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+  annotations:
+    volume.beta.kubernetes.io/storage-class: generic
+spec:
+  accessModes:
+  - {{ .Values.Persistence.AccessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.Persistence.Size | quote }}
+{{- end }}

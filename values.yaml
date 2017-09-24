@@ -1,0 +1,155 @@
+# Default values for jenkins.
+# This is a YAML-formatted file.
+# Declare name/value pairs to be passed into your templates.
+# name: value
+
+Namespace: &namespace default
+
+Image:
+  PullSecret:
+
+Scheduling:
+  Enabled: false
+  Affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: stateless
+            operator: In
+            values:
+            - 'false'
+          - key: namespace
+            operator: In
+            values:
+            - *namespace
+
+Service:
+  Type: LoadBalancer
+
+Master:
+  Name: jenkins-master
+  #Image: "gcr.io/kubernetes-charts-ci/jenkins-master-k8s"
+  #ImageTag: "v0.7.0"
+  Image: "jenkinsci/jenkins"
+  ImageTag: "lts"
+  #Image: "jenkinsci/blueocean"
+  #ImageTag: "1.0.0"
+  ImagePullPolicy: "Always"
+  Component: "jenkins-master"
+  UseSecurity: false
+  AdminUser: admin
+# AdminPassword: <defaults to random>
+  Cpu: "200m"
+  Memory: "256Mi"
+# Set min/max heap here if needed with:
+# JavaOpts: "-Xms512m -Xmx512m"
+  ServicePort: 80
+# For minikube, set this to NodePort, elsewhere use LoadBalancer
+# Use ClusterIP if your setup includes ingress controller
+  ServiceType: LoadBalancer
+# Used to create Ingress record (should used with ServiceType: ClusterIP)
+# HostName: jenkins.cluster.local
+# NodePort: <to set explicitly, choose port between 30000-32767
+  ContainerPort: 8080
+  SlaveListenerPort: 50000
+  LoadBalancerSourceRanges:
+  - 0.0.0.0/0
+# List of groovy init scripts to be executed during Jenkins master start
+  InitScripts:
+  - |
+    import jenkins.model.*
+    import java.util.logging.Logger
+
+    def logger = Logger.getLogger("")
+    def installed = false
+    def initialized = false
+
+    def pluginParameter="kubernetes github-organization-folder blueocean Office-365-Connector blueocean-github-pipeline pipeline-stage-view pipeline-milestone-step pipeline-build-step workflow-aggregator github-oauth"
+    def plugins = pluginParameter.split()
+    logger.info("" + plugins)
+    def instance = Jenkins.getInstance()
+    def pm = instance.getPluginManager()
+    def uc = instance.getUpdateCenter()
+    uc.updateAllSites()
+
+    plugins.each {
+      logger.info("Checking " + it)
+      if (!pm.getPlugin(it)) {
+        logger.info("Looking UpdateCenter for " + it)
+        if (!initialized) {
+          uc.updateAllSites()
+          initialized = true
+        }
+        def plugin = uc.getPlugin(it)
+        if (plugin) {
+          logger.info("Installing " + it)
+    	    plugin.deploy()
+          installed = true
+        }
+      }
+    }
+
+    if (installed) {
+      logger.info("Plugins installed, initializing a restart!")
+      instance.save()
+      instance.doSafeRestart()
+    }
+  - |
+    import jenkins.model.*
+    import hudson.security.SecurityRealm
+    import org.jenkinsci.plugins.GithubSecurityRealm
+
+    String githubWebUri = 'https://github.com'
+    String githubApiUri = 'https://api.github.com'
+    String clientID = 'REPLACE'
+    String clientSecret = 'REPLACE'
+    String oauthScopes = 'read:org,user:email'
+
+    def instance = Jenkins.getInstance()
+
+    SecurityRealm github_realm = new GithubSecurityRealm(githubWebUri, githubApiUri, clientID, clientSecret, oauthScopes)
+    //check for equality, no need to modify the runtime if no settings changed
+    if(!github_realm.equals(instance.getSecurityRealm())) {
+      instance.setSecurityRealm(github_realm)
+      instance.save()
+    }
+  CustomConfigMap: false
+
+  Ingress:
+    Annotations:
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+
+    TLS:
+      # - secretName: jenkins.cluster.local
+      #   hosts:
+      #     - jenkins.cluster.local
+
+Agent:
+  Image: jenkinsci/jnlp-slave
+  ImageTag: 2.52
+  Cpu: "200m"
+  Memory: "256Mi"
+
+Persistence:
+  Enabled: false
+  #ExistingClaim: 
+  ## A manually managed Persistent Volume and Claim
+  ## Requires Persistence.Enabled: true
+  ## If defined, PVC must be created manually before volume will be bound
+  # ExistingClaim:
+
+  ## If defined, volume.beta.kubernetes.io/storage-class: <StorageClass>
+  ## Default: volume.alpha.kubernetes.io/storage-class: default
+  ##
+  StorageClass: generic
+  AccessMode: ReadWriteOnce
+  Size: 50Gi
+  volumes:
+#  - name: nothing
+#    emptyDir: {}
+  mounts:
+#  - mountPath: /var/nothing
+#    name: nothing
+#    readOnly: true
