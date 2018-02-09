@@ -5,12 +5,12 @@ metadata:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
   {{- end }}
-  name: {{ template "fullname" . }}
+  name: {{ template "shortname" . }}
   namespace: {{ .Values.Namespace | default "default" }}
   labels:
     heritage: {{ .Release.Service | quote }}
     release: {{ .Release.Name | quote }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    chart: {{ .Chart.Name }}
     component: {{ template "fullname" . }}
 spec:
   ports:

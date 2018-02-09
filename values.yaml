@@ -5,6 +5,8 @@
 
 Namespace: &namespace default
 
+Name: jenkins
+
 Image:
   PullSecret:
 
@@ -95,25 +97,6 @@ Master:
       instance.save()
       instance.doSafeRestart()
     }
-  - |
-    import jenkins.model.*
-    import hudson.security.SecurityRealm
-    import org.jenkinsci.plugins.GithubSecurityRealm
-
-    String githubWebUri = 'https://github.com'
-    String githubApiUri = 'https://api.github.com'
-    String clientID = 'REPLACE'
-    String clientSecret = 'REPLACE'
-    String oauthScopes = 'read:org,user:email'
-
-    def instance = Jenkins.getInstance()
-
-    SecurityRealm github_realm = new GithubSecurityRealm(githubWebUri, githubApiUri, clientID, clientSecret, oauthScopes)
-    //check for equality, no need to modify the runtime if no settings changed
-    if(!github_realm.equals(instance.getSecurityRealm())) {
-      instance.setSecurityRealm(github_realm)
-      instance.save()
-    }
   CustomConfigMap: false
 
   Ingress:
@@ -133,8 +116,8 @@ Agent:
   Memory: "256Mi"
 
 Persistence:
-  Enabled: false
-  #ExistingClaim: 
+  Enabled: true
+  #ExistingClaim:
   ## A manually managed Persistent Volume and Claim
   ## Requires Persistence.Enabled: true
   ## If defined, PVC must be created manually before volume will be bound
@@ -143,9 +126,9 @@ Persistence:
   ## If defined, volume.beta.kubernetes.io/storage-class: <StorageClass>
   ## Default: volume.alpha.kubernetes.io/storage-class: default
   ##
-  StorageClass: generic
+  StorageClass: standard
   AccessMode: ReadWriteOnce
-  Size: 50Gi
+  Size: 10Gi
   volumes:
 #  - name: nothing
 #    emptyDir: {}

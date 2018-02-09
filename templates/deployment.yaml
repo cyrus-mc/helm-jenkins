@@ -1,12 +1,12 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: {{ template "fullname" . }}
+  name: {{ template "shortname" . }}
   namespace: {{ .Values.Namespace | default "default" }}
   labels:
     heritage: {{.Release.Service | quote }}
     release: {{.Release.Name | quote }}
-    chart: "{{.Chart.Name}}-{{.Chart.Version}}"
+    chart: {{.Chart.Name}}
     component: {{ template "fullname" . }}
 spec:
   replicas: 1
@@ -48,6 +48,7 @@ spec:
       {{- end }}
       securityContext:
         runAsUser: 0
+      serviceAccountName: {{ template "shortname" . }}
       containers:
         - name: {{ template "fullname" . }}
           image: "{{.Values.Master.Image}}:{{.Values.Master.ImageTag}}"
@@ -77,18 +78,16 @@ spec:
               name: slavelistener
           resources:
             requests:
-              cpu: "{{.Values.Master.Cpu}}"
-              memory: "{{.Values.Master.Memory}}"
+              cpu: {{ .Values.Master.Cpu }}
+              memory: {{ .Values.Master.Memory }}
           volumeMounts:
 {{- if .Values.Persistence.mounts }}
 {{ toYaml .Values.Persistence.mounts | indent 12 }}
 {{- end }}
-            -
-              mountPath: /var/jenkins_home
+            - mountPath: /var/jenkins_home
               name: jenkins-home
               readOnly: false
-            -
-              mountPath: /var/jenkins_config
+            - mountPath: /var/jenkins_config
               name: jenkins-config
               readOnly: true
       {{- if (not (empty .Values.Image.PullSecret)) }}
@@ -101,7 +100,7 @@ spec:
 {{- end }}
       - name: jenkins-config
         configMap:
-          name: {{ template "fullname" . }}
+          name: {{ template "shortname" . }}
       - name: jenkins-home
       {{- if .Values.Persistence.Enabled }}
         persistentVolumeClaim:
